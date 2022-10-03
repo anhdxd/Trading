@@ -17,9 +17,10 @@ class DataAnalystic(object):
     CU_down_name = "increase_down_sd" # candle up - down shadows
     CL_up_name = "decrease_up_sd"   # cander low - up shadows
     CL_down_name = "decrease_down_sd" # candle low - down shadows
+
     def __init__(self, pathfile):
         self.pdReader = pd.read_csv(pathfile)
-        self.SubCandle = (self.pdReader["open"] - self.pdReader["close"])*10000 
+        self.SubCandle = (self.pdReader["open"] - self.pdReader["close"])
 
     def Volume_Analystic(self, VolRange = 1000): 
         # Tính Volume giao địch thông dụng nhất trong khoảng VolRange giá
@@ -36,6 +37,7 @@ class DataAnalystic(object):
         print(scope)
         return scope
 
+    # Shadow Analysis **************************************************
     def IncreaseShadows_Analystic(self, CandleRange=10, Maxpip=500):
         # Bóng của nến tăng.
         # dtype = {"open":float, "high":float, "low":float, "close":float, "tick_volume":int, "spread":int, "real_volume":int}
@@ -46,7 +48,6 @@ class DataAnalystic(object):
         LowerShadows = pd.DataFrame((UpperCandle["open"] - UpperCandle["low"])*10000)
 
         # Tính số râu nến thông dụng
-        start = end =0
         scope_up = scope_down = pd.DataFrame()
         scope_up = UpperShadows[0].astype(int) // CandleRange * CandleRange    
         scope_down = LowerShadows[0].astype(int) // CandleRange * CandleRange
@@ -60,8 +61,8 @@ class DataAnalystic(object):
         # Trả về bảng các giá trị phổ biến của râu nến, các giá trị trong khoảng [index+CandleRange] VD: Index=0 -> giá trị từ 0-10
         UpperCondition = (self.pdReader["open"] - self.pdReader["close"]) <= 0
         LowerCandle = self.pdReader.where(UpperCondition).dropna()
-        UpperShadows = pd.DataFrame((LowerCandle["high"] - LowerCandle["close"])*10000)
-        LowerShadows = pd.DataFrame((LowerCandle["open"] - LowerCandle["low"])*10000)
+        UpperShadows = pd.DataFrame((LowerCandle["high"] - LowerCandle["open"])*10000)
+        LowerShadows = pd.DataFrame((LowerCandle["close"] - LowerCandle["low"])*10000)
 
         # Tính số râu nến thông dụng
         scope_up = scope_down = pd.DataFrame()
@@ -74,19 +75,38 @@ class DataAnalystic(object):
         # print(scope)
         return scope
 
-    def CandleShadows_Analystic(self, rangecandle = 10, maxpip=500):
+    def CandleShadows_Analystic(self, CandleRange = 10, Maxpip=500):
 
         dtype = {self.CL_up_name:int, self.CL_down_name:int, self.CU_up_name:int, self.CU_down_name:int}
-        scope1 = self.IncreaseShadows_Analystic()
-        scope2 = self.DecreaseShadows_Analystic()
+        scope1 = self.IncreaseShadows_Analystic(CandleRange,Maxpip)
+        scope2 = self.DecreaseShadows_Analystic(CandleRange,Maxpip)
 
         result = pd.concat([scope1, scope2], axis=1).fillna(0).astype(dtype)
         print(result)
 
         return
+   
+    #Candle Analysis **************************************************
+    def CandleUp_Analystic(self, CandleRange=5):
+        # Nến tăng
+        UpperCondition = self.SubCandle > 0
+        UpperCandle = pd.DataFrame(self.SubCandle.where(UpperCondition).dropna() * 10000)
+        scope = UpperCandle[0].astype(int) // CandleRange * CandleRange 
+        return scope.value_counts()
 
-    def CandleBody_Analystic(self, CandleStickList):
-        # Thân nến
+    def CandleDown_Analystic(self, CandleRange=5):
+        # Nến giảm 
+        UpperCondition = self.SubCandle <= 0
+        LowerCandle = pd.DataFrame(self.SubCandle.where(UpperCondition).dropna() * 10000).abs()
+        scope = LowerCandle[0].astype(int) // CandleRange * CandleRange
+        return scope.value_counts()
+
+    def CandleBody_Analystic(self):
+        # Thân nến thông dụng
+        CandleUp = self.CandleUp_Analystic()
+        CandleDown = self.CandleDown_Analystic()
+        CandleBody = pd.DataFrame({"CandleUp": CandleUp, "CandleDown": CandleDown}).fillna(0).astype({"CandleUp":int, "CandleDown":int})
+        print(CandleBody)
         return
 
     def CandlePattern_Analystic(self, CandleStickList):
@@ -95,9 +115,8 @@ class DataAnalystic(object):
     def MostPopularCandle_Analystic(self, CandleStickList):
         # Độ dài nến phổ biến nhất
         return
+
 # PriceAction Class *******************************************************************************************************
-
-
 class PriceAction():
     def __init__(self):
         pass
@@ -116,17 +135,11 @@ def main():
             pathfile = os.path.join(folderpath, filename)
             print(pathfile)
 
-            #subpd = (df['open'] - df['close'])*10000 #pip
-            # Read file and analystic
-            #print(subpd.to_string())
-            # Volume analystic
             anal = DataAnalystic(pathfile)
-            anal.CandleShadows_Analystic()
-
-            #anal.Volume_Analystic(df['tick_volume'].to_list())
-            #anal.UpperShadows_Analystic(df['tick_volume'].to_list())
-            # Save file analystic
-            #pd.DataFrame.to_csv(data_analystic)
+            #anal.Volume_Analystic()
+            #anal.CandleShadows_Analystic()
+            #anal.CandleUp_Analystic()
+            anal.CandleBody_Analystic()
             break
     return
 
