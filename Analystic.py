@@ -20,7 +20,7 @@ class DataAnalystic(object):
 
     def __init__(self, pathfile):
         self.pdReader = pd.read_csv(pathfile)
-        self.SubCandle = (self.pdReader["open"] - self.pdReader["close"])
+        self.seSubCandle = (self.pdReader["open"] - self.pdReader["close"])
 
     def Volume_Analystic(self, VolRange = 1000): 
         # Tính Volume giao địch thông dụng nhất trong khoảng VolRange giá
@@ -89,15 +89,15 @@ class DataAnalystic(object):
     #Candle Analysis **************************************************
     def CandleUp_Analystic(self, CandleRange=5):
         # Nến tăng
-        UpperCondition = self.SubCandle > 0
-        UpperCandle = pd.DataFrame(self.SubCandle.where(UpperCondition).dropna() * 10000)
+        UpperCondition = self.seSubCandle > 0
+        UpperCandle = pd.DataFrame(self.seSubCandle.where(UpperCondition).dropna() * 10000)
         scope = UpperCandle[0].astype(int) // CandleRange * CandleRange 
         return scope.value_counts()
 
     def CandleDown_Analystic(self, CandleRange=5):
         # Nến giảm 
-        UpperCondition = self.SubCandle <= 0
-        LowerCandle = pd.DataFrame(self.SubCandle.where(UpperCondition).dropna() * 10000).abs()
+        UpperCondition = self.seSubCandle <= 0
+        LowerCandle = pd.DataFrame(self.seSubCandle.where(UpperCondition).dropna() * 10000).abs()
         scope = LowerCandle[0].astype(int) // CandleRange * CandleRange
         return scope.value_counts()
 
@@ -109,13 +109,27 @@ class DataAnalystic(object):
         print(CandleBody)
         return
 
+    # Pattern Analystic **************************************************
     def CandlePattern_Analystic(self, CandleStickList):
         # Mô hình nến
         return
-    def MostPopularCandle_Analystic(self, CandleStickList):
-        # Độ dài nến phổ biến nhất
-        return
+    def IsCandleUpper(self, rowCandle):
+        if rowCandle["open"] - rowCandle["close"] > 0:
+            return True # Nến tăng
+        else: 
+            return False # Nến giảm
 
+    def EngulfingPattern_Analystic(self):
+        for row in self.pdReader.iterrows():
+            print(row)
+            return
+            if(self.IsCandleUpper(row)):
+                
+                pass
+            else:
+                pass
+        return
+        
 # PriceAction Class *******************************************************************************************************
 class PriceAction():
     def __init__(self):
@@ -139,7 +153,7 @@ def main():
             #anal.Volume_Analystic()
             #anal.CandleShadows_Analystic()
             #anal.CandleUp_Analystic()
-            anal.CandleBody_Analystic()
+            anal.EngulfingPattern_Analystic()
             break
     return
 
