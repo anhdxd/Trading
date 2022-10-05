@@ -119,16 +119,62 @@ class DataAnalystic(object):
         else: 
             return False # Nến giảm
 
+    def CalBodyCandle(self, rowCandle):
+        return abs(rowCandle["open"] - rowCandle["close"])
+
     def EngulfingPattern_Analystic(self):
-        for row in self.pdReader.iterrows():
-            print(row)
-            return
-            if(self.IsCandleUpper(row)):
-                
-                pass
-            else:
-                pass
+        # Đếm số lượng mô hình Egulfing
+        row_len = len(self.pdReader)
+        count_pattern_up = cout_pattern_down = 0 # count_pattern_up nến trước là tăng, count_pattern_down nến trước là giảm
+        time_run = datetime.now()
+
+        # Upper Candle
+        # total_cd = self.pdReader[['open','close']].copy()
+        # total_cd.where(total_cd["open"] - total_cd["close"] > 0, inplace=True)
+
+
+        # # Up
+        # up_candle = total_cd.where(total_cd["open"] - total_cd["close"] > 0).dropna()
+        # down_candle = total_cd.where(total_cd["open"] - total_cd["close"] <= 0).dropna()
+
+        tab_1 = self.pdReader[['open','close']].copy().drop(self.pdReader.index[-1])
+        tab_2 = self.pdReader[['open','close']].copy()
+        tab_2.drop(tab_2.index[0], inplace=True)
+        tab_2.reset_index(drop=True, inplace=True)
+
+        cond_1 = (tab_1["open"] < tab_1["close"]) & (tab_1["close"] < tab_2["open"]) & (tab_1["open"] > tab_2["close"])
+        cond_2 = (tab_1["open"] > tab_1["close"]) & (tab_1["close"] > tab_2["open"]) & (tab_1["open"] < tab_2["close"])
+
+        print(cond_1.value_counts())
+        print(cond_2.value_counts())
+        cond = cond_1 | cond_2
+        print(cond.value_counts())
         return
+        tab_up = tab_1.where(cond_1).dropna()
+        tab_down = tab_1.where(cond_2).dropna()
+        tab_all = pd.concat([tab_up, tab_down])
+        print(tab_all)
+        return
+        for index, row in self.pdReader.iterrows():
+
+            if(index >= row_len - 1):
+                break
+
+            row_after = self.pdReader.iloc[index+1]
+            if(self.IsCandleUpper(row)): # Tăng
+                cond_1 = row["close"] < row_after["open"]
+                cond_2 = row["open"] > row_after["close"]
+                if(cond_1 and cond_2):
+                    count_pattern_up += 1
+            else: #giảm
+                cond_1 = row["close"] > row_after["open"]
+                cond_2 = row["open"] < row_after["close"]
+                if(cond_1 and cond_2):
+                    cout_pattern_down += 1
+
+        time_run = (datetime.now() - time_run).total_seconds()
+        print(f'Time run EngulfingPattern_Analystic: {time_run} second')
+        return count_pattern_up, cout_pattern_down, row_len
         
 # PriceAction Class *******************************************************************************************************
 class PriceAction():
@@ -153,7 +199,7 @@ def main():
             #anal.Volume_Analystic()
             #anal.CandleShadows_Analystic()
             #anal.CandleUp_Analystic()
-            anal.EngulfingPattern_Analystic()
+            print(anal.EngulfingPattern_Analystic())
             break
     return
 
