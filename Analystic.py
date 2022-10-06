@@ -4,6 +4,7 @@ from calendar import month
 from datetime import datetime, timedelta
 from msilib.schema import Class
 from time import sleep
+from traceback import print_tb
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -150,8 +151,8 @@ class DataAnalystic(object):
 
         # Draw đồ thị
         if draw:
-            graph_1 = tab_1.where(cond_1 )
-            graph_2 = tab_1.where(cond_2 )
+            graph_1 = tab_1.where(cond_1)
+            graph_2 = tab_1.where(cond_2)
             plt.plot(tab_1["close"].head(NumOfDraw), label="close")
             plt.plot(graph_1["close"].head(NumOfDraw), 'g.', label="upper")
             plt.plot(graph_2["close"].head(NumOfDraw), 'r.', label="lower")
@@ -168,29 +169,25 @@ class DataAnalystic(object):
         candle[2] = self.pdReader.drop(self.pdReader.index[[0,-1]]).reset_index(drop=True)
         candle[3] = self.pdReader.drop(self.pdReader.index[[0,1]]).reset_index(drop=True)
 
-        #<5pip
-        
-        print(candle[1])
-        print(candle[2])
-        print(candle[3])
-        return
-    def Drawl_Graph(self):
-        # Vẽ đồ thị
-        tab_1 = self.pdReader[['open', 'close']].copy().drop(
-            self.pdReader.index[-1]).reset_index(drop=True)
-        tab_2 = self.pdReader[['open', 'close']].copy().drop(
-            self.pdReader.index[0]).reset_index(drop=True)
+        #Down Mid Up
+        cond_1 = (candle[1]["open"] > candle[1]["close"])
+        cond_2 = abs(candle[2]["open"] - candle[2]["close"]) <= (6 * 0.0001)
+        cond_3 = (candle[3]["open"] < candle[3]["close"]) & ((candle[3]["close"] >= (candle[1]["close"] + (candle[1]["open"] - candle[1]["close"])/2)))
+        sum_cond_1 = cond_1 & cond_2 & cond_3
+        #Up Mid Down
+        cond_1 = (candle[1]["open"] < candle[1]["close"])
+        cond_2 = abs(candle[2]["open"] - candle[2]["close"]) <= (6 * 0.0001)
+        cond_3 = (candle[3]["open"] > candle[3]["close"]) & ((candle[3]["close"] <= (candle[1]["close"] - (candle[1]["close"] - candle[1]["open"])/2)))
+        sum_cond_2 = cond_1 & cond_2 & cond_3
 
-        cond_1 = tab_1.where((tab_1["open"] > tab_1["close"]) & (tab_2["open"] < tab_2["close"]) & (
-            (tab_1["close"] < tab_2["open"]) & (tab_1["open"] > tab_2["close"])))
-        cond_2 = tab_2.where((tab_1["open"] <= tab_1["close"]) & (tab_2["open"] >= tab_2["close"]) & (
-            (tab_1["close"] > tab_2["open"]) & (tab_1["open"] < tab_2["close"])))
-
-        plt.plot(tab_1["close"].head(5000), label="close")
-        plt.plot(cond_1["close"].head(5000), 'g.', label="pattern")
-        plt.plot(cond_2["close"].head(5000), 'r.', label="pattern")
-        plt.show()
-        return
+        if draw:
+            graph_1 = candle[2].where(sum_cond_1)
+            graph_2 = candle[2].where(sum_cond_2)
+            plt.plot(candle[2]["close"], label="char")
+            plt.plot(graph_1["close"], 'g.', label="spinning")
+            plt.plot(graph_2["close"], 'r.', label="spinningDown")
+            plt.show()
+        return sum_cond_1.where(sum_cond_1).count(), sum_cond_2.where(sum_cond_2).count()
 
 
 def main():
