@@ -6,12 +6,11 @@ from msilib.schema import Class
 from time import sleep
 import matplotlib.pyplot as plt
 import pandas as pd
-import pytz
 import os
 
 
 # DataAnalystic class ***********************************************
-
+        #sumcandle = self.pdReader.shape[0] - 1
 class DataAnalystic(object):
     CU_up_name ="increase_up_sd"    # candle up - up shadows
     CU_down_name = "increase_down_sd" # candle up - down shadows
@@ -122,61 +121,50 @@ class DataAnalystic(object):
     def CalBodyCandle(self, rowCandle):
         return abs(rowCandle["open"] - rowCandle["close"])
 
-    def EngulfingPattern_Analystic(self):
+    def EngulfingPattern_Analystic(self, draw=False, NumOfDraw = 10000):
         # Đếm số lượng mô hình Egulfing
-        row_len = len(self.pdReader)
-        count_pattern_up = cout_pattern_down = 0 # count_pattern_up nến trước là tăng, count_pattern_down nến trước là giảm
+        # Return: Tần số xh cho xu hướng Tăng(đỏ-xanh), giảm(xanh-đỏ), tổng, all
         time_run = datetime.now()
 
-        # Upper Candle
-        # total_cd = self.pdReader[['open','close']].copy()
-        # total_cd.where(total_cd["open"] - total_cd["close"] > 0, inplace=True)
+        tab_1 = self.pdReader[['open','close']].drop(self.pdReader.index[-1]).reset_index(drop=True)
+        tab_2 = self.pdReader[['open','close']].drop(self.pdReader.index[0]).reset_index(drop=True)
 
+        cond_1 = (tab_1["open"] > tab_1["close"]) & (tab_2["open"] < tab_2["close"]) & ((tab_1["close"] < tab_2["open"]) & (tab_1["open"] > tab_2["close"]))
+        cond_2 = (tab_1["open"] <= tab_1["close"]) & (tab_2["open"]>=tab_2["close"]) & ((tab_1["close"] > tab_2["open"]) & (tab_1["open"] < tab_2["close"]))
+        
+        upper_patt = cond_1.where(cond_1).count()
+        lower_patt = cond_2.where(cond_2).count()
+        sum_pattr = upper_patt + lower_patt
+        sumcandle = len(self.pdReader)
 
-        # # Up
-        # up_candle = total_cd.where(total_cd["open"] - total_cd["close"] > 0).dropna()
-        # down_candle = total_cd.where(total_cd["open"] - total_cd["close"] <= 0).dropna()
-
-        tab_1 = self.pdReader[['open','close']].copy().drop(self.pdReader.index[-1])
-        tab_2 = self.pdReader[['open','close']].copy()
-        tab_2.drop(tab_2.index[0], inplace=True)
-        tab_2.reset_index(drop=True, inplace=True)
-
-        cond_1 = (tab_1["open"] < tab_1["close"]) & (tab_1["close"] < tab_2["open"]) & (tab_1["open"] > tab_2["close"])
-        cond_2 = (tab_1["open"] > tab_1["close"]) & (tab_1["close"] > tab_2["open"]) & (tab_1["open"] < tab_2["close"])
-
-        print(cond_1.value_counts())
-        print(cond_2.value_counts())
-        cond = cond_1 | cond_2
-        print(cond.value_counts())
-        return
-        tab_up = tab_1.where(cond_1).dropna()
-        tab_down = tab_1.where(cond_2).dropna()
-        tab_all = pd.concat([tab_up, tab_down])
-        print(tab_all)
-        return
-        for index, row in self.pdReader.iterrows():
-
-            if(index >= row_len - 1):
-                break
-
-            row_after = self.pdReader.iloc[index+1]
-            if(self.IsCandleUpper(row)): # Tăng
-                cond_1 = row["close"] < row_after["open"]
-                cond_2 = row["open"] > row_after["close"]
-                if(cond_1 and cond_2):
-                    count_pattern_up += 1
-            else: #giảm
-                cond_1 = row["close"] > row_after["open"]
-                cond_2 = row["open"] < row_after["close"]
-                if(cond_1 and cond_2):
-                    cout_pattern_down += 1
+        # Draw
+        if draw:
+            graph_1 = tab_1.where(cond_1)
+            graph_2 = tab_1.where(cond_2)
+            plt.plot(tab_1["close"].head(NumOfDraw), label="close")
+            plt.plot(graph_1["close"].head(NumOfDraw), 'r.', label="upper")
+            plt.plot(graph_2["close"].head(NumOfDraw), 'g.', label="lower")
+            plt.show()
 
         time_run = (datetime.now() - time_run).total_seconds()
         print(f'Time run EngulfingPattern_Analystic: {time_run} second')
-        return count_pattern_up, cout_pattern_down, row_len
+        return upper_patt, lower_patt, sum_pattr, sumcandle
+
+    def Drawl_Graph(self):
+        # Vẽ đồ thị
+        tab_1 = self.pdReader[['open','close']].copy().drop(self.pdReader.index[-1]).reset_index(drop=True)
+        tab_2 = self.pdReader[['open','close']].copy().drop(self.pdReader.index[0]).reset_index(drop=True)
+
+        cond_1 = tab_1.where((tab_1["open"] > tab_1["close"]) & (tab_2["open"] < tab_2["close"]) & ((tab_1["close"] < tab_2["open"]) & (tab_1["open"] > tab_2["close"])))
+        cond_2 = tab_2.where((tab_1["open"] <= tab_1["close"]) & (tab_2["open"]>=tab_2["close"]) & ((tab_1["close"] > tab_2["open"]) & (tab_1["open"] < tab_2["close"])))
         
-# PriceAction Class *******************************************************************************************************
+        plt.plot(tab_1["close"].head(5000), label="close")
+        plt.plot(cond_1["close"].head(5000), 'g.', label="pattern")
+        plt.plot(cond_2["close"].head(5000), 'r.', label="pattern")
+        plt.show()
+        return
+# PriceAction Class 
+# *******************************************************************************************************
 class PriceAction():
     def __init__(self):
         pass
@@ -193,14 +181,16 @@ def main():
     for filename in dir_list:
         if filename.endswith(".csv"):
             pathfile = os.path.join(folderpath, filename)
-            print(pathfile)
+            print(filename[0:3])
 
             anal = DataAnalystic(pathfile)
+            print(anal.EngulfingPattern_Analystic(draw = True))
+            #anal.Drawl_Graph()
+            return
+            input("Press Enter to continue...")
             #anal.Volume_Analystic()
             #anal.CandleShadows_Analystic()
             #anal.CandleUp_Analystic()
-            print(anal.EngulfingPattern_Analystic())
-            break
     return
 
 # Section main **************************************************************
