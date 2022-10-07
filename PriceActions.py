@@ -14,4 +14,13 @@ class PriceAction():
 
     def GetKeyLevel():
         # Tìm các mốc giá quan trọng
+
         return
+    def GetTrend():
+        
+        return
+
+def main():
+    pass
+
+main()
