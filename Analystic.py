@@ -189,6 +189,61 @@ class DataAnalystic(object):
             plt.show()
         return sum_cond_1.where(sum_cond_1).count(), sum_cond_2.where(sum_cond_2).count()
 
+    def KeyLevelUp_H1_Analystic(self, draw=False, NumOfCandle = 24):
+        # NumOfCandle: Số lượng nến tính min max
+        ccd = self.pdReader.copy()
+        lst_idmax = []
+        lst_idmin = []
+        lst_keylevel = []
+        times = datetime.now()
+        # find all điểm cao nhất, thấp nhất khoảng NumOfCandle cây nến
+        for i in range(0, len(ccd), NumOfCandle):
+            frame_split = ccd.iloc[i:(i+NumOfCandle)]
+            max_id = frame_split["close"].idxmax()
+            min_id = frame_split["close"].idxmin()
+            lst_idmax.append(max_id)
+            lst_idmin.append(min_id)
+
+        # for 4 dataframe
+        # for i in range(0,4):
+        #     lst_keylevel[i] = ccd.drop(ccd.index[[i-1,i-2,i-3,i-4]]).reset_index(drop=True)
+        #     print(lst_keylevel[i])
+        # Check key level
+
+        timeu = datetime.now() - times
+        
+        frame_max = ccd.iloc[lst_idmax] 
+        frame_min = ccd.iloc[lst_idmin]
+
+
+        # get keylevel downtrend
+        #cond1 = (ccd["close"].index > frame_max["close"])
+        #maxkey = frame_max.where()
+        for i in frame_max.iterrows():
+            if(i[0] >= 100):
+                temp = ccd.iloc[i[0]-10:i[0]-110:-1]
+                temp = temp.where(temp["close"] > i[1]["close"]).dropna()
+                if(len(temp) != 0):
+                    lst_keylevel.append(ccd.iloc[temp.index[0]:i[0]]["close"].idxmin())
+        print('Time Total Used:',timeu.total_seconds())
+
+        frame_min = ccd.iloc[lst_keylevel] 
+
+        plt.plot(ccd["close"])
+        plt.plot(frame_max["close"], 'r.')
+        plt.plot(frame_min["close"], 'g.')
+        plt.show()
+        #print(candle)
+        return
+
+    def Cal_Total_Balance(self, idx_from = 16553-2, idx_to = 16587-2):
+        
+        Candle_round = self.pdReader.iloc[idx_from:idx_to+1]
+        Total = Candle_round["close"] - Candle_round["open"]
+        print(Candle_round)
+        print(round(Total.sum()*10000, 2))
+        return 
+
 
 def main():
     data_analystic = {}
@@ -200,8 +255,10 @@ def main():
             print(filename[0:3])
 
             anal = DataAnalystic(pathfile)
+            #anal.Cal_Total_Balance()
+            anal.KeyLevelUp_H1_Analystic()
             #print(anal.EngulfingPattern_Analystic(draw=True))
-            print(anal.MorningStart_Analystic(draw=True))
+            #print(anal.MorningStart_Analystic(draw=True))
             # anal.Drawl_Graph()
             return
             input("Press Enter to continue...")
