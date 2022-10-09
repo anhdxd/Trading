@@ -169,15 +169,19 @@ class DataAnalystic(object):
         candle[2] = self.pdReader.drop(self.pdReader.index[[0,-1]]).reset_index(drop=True)
         candle[3] = self.pdReader.drop(self.pdReader.index[[0,1]]).reset_index(drop=True)
 
+        cond_up_3 = abs(candle[3]["open"] - candle[3]["close"]) - abs(candle[3]["high"] - candle[3]["close"]) - abs(candle[3]["open"] - candle[3]["low"]) >= 0
+        cond_down_3 = abs(candle[3]["open"] - candle[3]["close"]) - abs(candle[3]["high"] - candle[3]["open"]) - abs(candle[3]["close"] - candle[3]["low"]) >= 0
+
+        cond_vol_3 = abs(candle[3]["open"] - candle[3]["close"])  >= (10 * 0.0001) # Nến phải mở đóng >= 10pip
         #Down Mid Up
         cond_1 = (candle[1]["open"] > candle[1]["close"])
         cond_2 = abs(candle[2]["open"] - candle[2]["close"]) <= (6 * 0.0001)
-        cond_3 = (candle[3]["open"] < candle[3]["close"]) & ((candle[3]["close"] >= (candle[1]["close"] + (candle[1]["open"] - candle[1]["close"])/2)))
+        cond_3 = (candle[3]["open"] < candle[3]["close"]) & ((candle[3]["close"] >= (candle[1]["close"] + (candle[1]["open"] - candle[1]["close"])/2))) & cond_up_3
         sum_cond_1 = cond_1 & cond_2 & cond_3
         #Up Mid Down
         cond_1 = (candle[1]["open"] < candle[1]["close"])
         cond_2 = abs(candle[2]["open"] - candle[2]["close"]) <= (6 * 0.0001)
-        cond_3 = (candle[3]["open"] > candle[3]["close"]) & ((candle[3]["close"] <= (candle[1]["close"] - (candle[1]["close"] - candle[1]["open"])/2)))
+        cond_3 = (candle[3]["open"] > candle[3]["close"]) & ((candle[3]["close"] <= (candle[1]["close"] - (candle[1]["close"] - candle[1]["open"])/2))) & cond_down_3
         sum_cond_2 = cond_1 & cond_2 & cond_3
 
         if draw:
