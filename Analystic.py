@@ -1,5 +1,6 @@
 
 from ast import main
+from cProfile import label
 from calendar import month
 from datetime import datetime, timedelta
 from msilib.schema import Class
@@ -193,49 +194,65 @@ class DataAnalystic(object):
             plt.show()
         return sum_cond_1.where(sum_cond_1).count(), sum_cond_2.where(sum_cond_2).count()
 
-    def KeyLevelUp_H1_Analystic(self, draw=False, NumOfCandle = 24):
+    def KeyLevelDown_M15_Analystic(self, draw=False, NumOfCandle = 20):
         # NumOfCandle: Số lượng nến tính min max
         ccd = self.pdReader.copy()
-        lst_idmax = []
-        lst_idmin = []
-        lst_keylevel = []
+        lst_idmax_base = []
+        lst_idmin_base = []
+        lst_keylevel_down = []
         times = datetime.now()
         # find all điểm cao nhất, thấp nhất khoảng NumOfCandle cây nến
-        for i in range(0, len(ccd), NumOfCandle):
-            frame_split = ccd.iloc[i:(i+NumOfCandle)]
+        for i in range(len(ccd), 0+NumOfCandle, -NumOfCandle):
+            frame_split = ccd.iloc[(i-NumOfCandle):i]
             max_id = frame_split["close"].idxmax()
             min_id = frame_split["close"].idxmin()
-            lst_idmax.append(max_id)
-            lst_idmin.append(min_id)
+            if ccd.iloc[max_id]["close"] > ccd.iloc[max_id]["open"]:
+                lst_idmax_base.append(max_id)
+            if ccd.iloc[min_id]["close"] < ccd.iloc[min_id]["open"]:
+                lst_idmin_base.append(min_id)
 
-        # for 4 dataframe
-        # for i in range(0,4):
-        #     lst_keylevel[i] = ccd.drop(ccd.index[[i-1,i-2,i-3,i-4]]).reset_index(drop=True)
-        #     print(lst_keylevel[i])
-        # Check key level
-
-        timeu = datetime.now() - times
-        
-        frame_max = ccd.iloc[lst_idmax] 
-        frame_min = ccd.iloc[lst_idmin]
-
+        frame_max_base = ccd.iloc[lst_idmax_base] 
+        frame_min_base = ccd.iloc[lst_idmin_base]
 
         # get keylevel downtrend
-        #cond1 = (ccd["close"].index > frame_max["close"])
-        #maxkey = frame_max.where()
-        for i in frame_max.iterrows():
-            if(i[0] >= 100):
-                temp = ccd.iloc[i[0]-10:i[0]-110:-1]
-                temp = temp.where(temp["close"] > i[1]["close"]).dropna()
-                if(len(temp) != 0):
-                    lst_keylevel.append(ccd.iloc[temp.index[0]:i[0]]["close"].idxmin())
+        
+        # for i in frame_max_base.iterrows():
+        #     if(i[0] >= 100):
+        #         temp = ccd.iloc[i[0]-10:i[0]-100:-1]
+        #         temp = temp.where(temp["close"] > i[1]["close"]).dropna()
+                
+        #         if(len(temp) != 0):
+        #             idx_min = ccd.iloc[temp.index[0]:i[0]]["close"].idxmin()
+        #             if (i[1]["close"] - ccd.iloc[idx_min]["close"]) <= 0.005:
+        #                 frame_max_base = frame_max_base.drop(i[0])
+        #                 continue
+        #             lst_keylevel_down.append(idx_min)
+        #         else: 
+        #             frame_max_base = frame_max_base.drop(i[0])
+
+        # for i in frame_min_base.iterrows():
+        #     temp = ccd.iloc[i[0]+10:i[0]+110]
+        #     temp = temp.where(temp["close"] < i[1]["close"]).dropna()
+
+        #     if(len(temp) != 0):
+        #         idx_max = ccd.iloc[i[0]:temp.index[0]]["close"].idxmax()
+        #         if (-i[1]["close"] + ccd.iloc[idx_max]["close"]) <= 0.005:
+        #             frame_min_base = frame_min_base.drop(i[0])
+        #             continue
+        #         lst_keylevel_down.append(idx_max)
+        #     else: 
+        #         frame_min_base = frame_min_base.drop(i[0])
+        # # get keylevel uptrend
+        # frame_min = ccd.iloc[lst_keylevel_down] 
+
+        timeu = datetime.now() - times
         print('Time Total Used:',timeu.total_seconds())
 
-        frame_min = ccd.iloc[lst_keylevel] 
-
         plt.plot(ccd["close"])
-        plt.plot(frame_max["close"], 'r.')
-        plt.plot(frame_min["close"], 'g.')
+        plt.plot(frame_max_base["close"], 'r.', label="max_base")
+        #plt.plot(frame_min_base["close"], 'g.', label="min_base")
+        #plt.plot(frame_min["close"], 'b.', label="keylevel_down")
+        plt.show()
         plt.show()
         #print(candle)
         return
@@ -248,6 +265,32 @@ class DataAnalystic(object):
         print(round(Total.sum()*10000, 2))
         return 
 
+    def KeyLevel_M15_Up_RealTime(self):
+        candle = self.pdReader.tail(500).reset_index().copy()
+
+        lst_idmax_base = []
+        lst_idmin_base = []
+        for i in range(0, len(candle), 10):
+            frame_split = candle.iloc[i:i+10]
+            max_id = frame_split["close"].idxmax()
+            min_id = frame_split["close"].idxmin()
+            lst_idmax_base.append(max_id)
+            lst_idmin_base.append(min_id)
+            #print(frame_split)
+            print('max,min:',max_id, min_id)
+
+
+        frame_max_base = candle.iloc[lst_idmax_base] 
+        frame_min_base = candle.iloc[lst_idmin_base]
+        frame_merge = pd.concat([frame_max_base, frame_min_base])
+        print(frame_merge)
+
+        #Draw
+        plt.plot(candle["close"])
+        plt.plot(frame_merge["close"], 'r.', label="max_base")
+        #plt.plot(frame_min_base["close"], 'g.', label="min_base")
+        plt.show()
+        return
 
 def main():
     data_analystic = {}
@@ -258,9 +301,9 @@ def main():
             pathfile = os.path.join(folderpath, filename)
             print(filename[0:3])
 
-            anal = DataAnalystic(pathfile)
+            anal = DataAnalystic(folderpath+'\M15_GBPUSB_2021-01-04_2022-09-27.csv')
             #anal.Cal_Total_Balance()
-            anal.KeyLevelUp_H1_Analystic()
+            anal.KeyLevel_M15_Up_RealTime()
             #print(anal.EngulfingPattern_Analystic(draw=True))
             #print(anal.MorningStart_Analystic(draw=True))
             # anal.Drawl_Graph()
