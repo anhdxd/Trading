@@ -279,18 +279,37 @@ class DataAnalystic(object):
             #print(frame_split)
             print('max,min:',max_id, min_id)
 
-
         frame_max_base = candle.iloc[lst_idmax_base] 
         frame_min_base = candle.iloc[lst_idmin_base]
         frame_merge = pd.concat([frame_max_base, frame_min_base])
         print(frame_merge)
 
+        return frame_merge
+    def KeyLevel_H1_Up_RealTime(self):
+        candle = self.pdReader.tail(500//4).reset_index().copy()
+
+        lst_idmax_base = []
+        lst_idmin_base = []
+        for i in range(0, len(candle), 20):
+            frame_split = candle.iloc[i:i+20]
+            max_id = frame_split["close"].idxmax()
+            min_id = frame_split["close"].idxmin()
+            lst_idmax_base.append(max_id)
+            lst_idmin_base.append(min_id)
+            #print(frame_split)
+            print('max,min:',max_id, min_id)
+
+        frame_max_base = candle.iloc[lst_idmax_base]
+        frame_min_base = candle.iloc[lst_idmin_base]
+        frame_merge = pd.concat([frame_max_base, frame_min_base])
+        print(frame_merge)
+
         #Draw
-        plt.plot(candle["close"])
-        plt.plot(frame_merge["close"], 'r.', label="max_base")
+        #plt.plot(candle["close"])
+        #plt.plot(frame_merge["close"], 'r.', label="max_base")
         #plt.plot(frame_min_base["close"], 'g.', label="min_base")
-        plt.show()
-        return
+        #plt.show()
+        return frame_merge
 
 def main():
     data_analystic = {}
@@ -302,8 +321,18 @@ def main():
             print(filename[0:3])
 
             anal = DataAnalystic(folderpath+'\M15_GBPUSB_2021-01-04_2022-09-27.csv')
-            #anal.Cal_Total_Balance()
-            anal.KeyLevel_M15_Up_RealTime()
+            h1 = DataAnalystic(folderpath+'\H1_GBPUSB_2020-01-01_2022-09-27.csv')
+            
+            
+            UpH1 = h1.KeyLevel_H1_Up_RealTime()
+            UpM15 = anal.KeyLevel_M15_Up_RealTime()
+            #Draw
+            candle = anal.pdReader.tail(500).reset_index().copy()
+            plt.plot(candle["close"])
+            plt.plot(UpH1["close"], 'r.', label="H1")
+            plt.plot(UpM15["close"], 'g.', label="M15_Base")
+            #plt.plot(frame_min_base["close"], 'g.', label="min_base")
+            plt.show()
             #print(anal.EngulfingPattern_Analystic(draw=True))
             #print(anal.MorningStart_Analystic(draw=True))
             # anal.Drawl_Graph()
