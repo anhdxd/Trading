@@ -1,14 +1,12 @@
 
 from ast import main
-from cProfile import label
-from calendar import month
 from datetime import datetime, timedelta
-from msilib.schema import Class
 from time import sleep
-from traceback import print_tb
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+import numpy as np
+from scipy.signal import argrelextrema
 
 # DataAnalystic class ***********************************************
 #sumcandle = self.pdReader.shape[0] - 1
@@ -266,20 +264,30 @@ class DataAnalystic(object):
         return 
 
     def KeyLevel_M15_Up_RealTime(self):
-        candle = self.pdReader.tail(500).reset_index().copy()
+        candle = self.pdReader#.tail(5000).reset_index().copy()
 
         lst_idmax_base = []
         lst_idmin_base = []
-        for i in range(0, len(candle), 10):
-            frame_split = candle.iloc[i:i+10]
-            max_id = frame_split["close"].idxmax()
-            min_id = frame_split["close"].idxmin()
-            lst_idmax_base.append(max_id)
-            lst_idmin_base.append(min_id)
-            #print(frame_split)
-            print('max,min:',max_id, min_id)
 
-        frame_max_base = candle.iloc[lst_idmax_base] 
+        # for i in range(0, len(candle), 10):
+        #     frame_split = candle.iloc[i:i+10]
+        #     max_id = frame_split["close"].idxmax()
+        #     min_id = frame_split["close"].idxmin()
+        #     lst_idmax_base.append(max_id)
+        #     lst_idmin_base.append(min_id)
+        #     #print(frame_split)
+        #     print('max,min:',max_id, min_id)
+
+        minloc = candle.iloc[argrelextrema(candle["close"].values, np.less_equal, order=5)[0]]
+        maxloc = candle.iloc[argrelextrema(candle["close"].values, np.greater_equal, order=5)[0]]
+        
+        #print(df)
+        #print(candle)
+        plt.plot(minloc["close"], 'r.', label="M15")
+        plt.plot(maxloc["close"], 'g.', label="M15")
+        plt.plot(candle["close"])
+        plt.show()
+        frame_max_base = candle.iloc[lst_idmax_base]
         frame_min_base = candle.iloc[lst_idmin_base]
         frame_merge = pd.concat([frame_max_base, frame_min_base])
         print(frame_merge)
@@ -320,17 +328,17 @@ def main():
             pathfile = os.path.join(folderpath, filename)
             print(filename[0:3])
 
-            anal = DataAnalystic(folderpath+'\M15_GBPUSB_2021-01-04_2022-09-27.csv')
-            h1 = DataAnalystic(folderpath+'\H1_GBPUSB_2020-01-01_2022-09-27.csv')
+            anal = DataAnalystic('M15Data.csv')
+            #h1 = DataAnalystic(folderpath+'\H1_GBPUSB_2020-01-01_2022-09-27.csv')
             
             
-            UpH1 = h1.KeyLevel_H1_Up_RealTime()
+            #UpH1 = h1.KeyLevel_H1_Up_RealTime()
             UpM15 = anal.KeyLevel_M15_Up_RealTime()
             #Draw
-            candle = anal.pdReader.tail(500).reset_index().copy()
-            plt.plot(candle["close"])
-            plt.plot(UpH1["close"], 'r.', label="H1")
-            plt.plot(UpM15["close"], 'g.', label="M15_Base")
+            #candle = anal.pdReader.tail(500).reset_index().copy()
+            #plt.plot(candle["close"])
+            #plt.plot(UpH1["close"], 'r.', label="H1")
+            #plt.plot(UpM15["close"], 'g.', label="M15_Base")
             #plt.plot(frame_min_base["close"], 'g.', label="min_base")
             plt.show()
             #print(anal.EngulfingPattern_Analystic(draw=True))

@@ -1,6 +1,4 @@
 from datetime import datetime, timedelta
-from msilib.schema import Class
-from time import sleep
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -15,21 +13,20 @@ class PriceAction():
         self.M15_df = pd.DataFrame()
         self.M5_df = pd.DataFrame()
         
-
     def GetH1Candle(self, pathfile):
         # Lấy dữ liệu H1 Candle
         self.H1_df = pd.read_csv(pathfile)
         return
-    def GetM15Candle(self, pathfile):
+    def GetM15Candle(self, numofcandle = 500):
         # Lấy dữ liệu M15 Candle
-        self.M15_df = pd.read_csv(pathfile)
+        
         return
     def GetM5Candle(self, pathfile):
 
         # Lấy dữ liệu M15 Candle
         self.M5_df = pd.read_csv(pathfile)
         return
-    def GetRealTimeCandle(self):
+    def GetRealTimeCandle(self, NumofCandle = 1000):
         # Lấy dữ liệu Candle thời gian thực
         return
     def GetKeyLevel(self, cTimes = 'H1-M15'):
@@ -53,11 +50,12 @@ class PriceAction():
                 print(H1_KeyLevel)
             elif time == 'M15':
                 df_M15 = self.M15_df
+                
             elif time == 'M5':
                 df_M5 = self.M5_df
         
-        plt.plot(df_H1["close"])
-        plt.plot(H1_KeyLevel["close"], 'r.', label='H1')
+        plt.plot(df_M15["close"])
+        #plt.plot(H1_KeyLevel["close"], 'r.', label='H1')
         plt.show()
         return
 
@@ -78,13 +76,14 @@ class PriceAction():
     def Fibonanci():
         # Tính toán Fibonacci
         return
+
 if __name__ == "__main__":
 
     folderpath = os.path.dirname(__file__) + "\data_csv_mt5"
     pri = PriceAction()
     pri.GetH1Candle(folderpath+'\H1_GBPUSB_2020-01-01_2022-09-27.csv')
-    pri.GetM15Candle(folderpath+'\M15_GBPUSB_2021-01-04_2022-09-27.csv')
+    pri.GetM15Candle('M15Data.csv')
     pri.GetM5Candle(folderpath+'\M5_GBPUSB_2022-01-01_2022-10-01.csv')
-    pri.GetKeyLevel()
+    pri.GetKeyLevel('M15')
     pass
 

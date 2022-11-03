@@ -1,0 +1,5 @@
+pandas
+matplotlib
+MetaTrader5
+pytz
+scipy
