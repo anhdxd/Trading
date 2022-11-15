@@ -20,7 +20,7 @@ class PriceAction():
         self.pathcf = 'RealTimeData\config.ini' 
         self.M15_df = self.GetCandle('M15',500)
         #self.M5_df = self.GetCandle('M5',500)
-        self.H1_df = self.GetCandle('H1',500)
+        #self.H1_df = self.GetCandle('H1',500)
 
     def GetCandle(self, timeframe = 'M15', numofcandle = 1000):
         # Lấy dữ liệu M15 Candle
@@ -94,12 +94,13 @@ class PriceAction():
         for i in range(0,NumOfHash):
             lst[i] = Candle.drop(Candle.index[range(-NumOfHash+i,i)], inplace=False)
         return lst
-    def EqualRetValue(num_1 = 0, num_2 = 0):
+    def EqualRetValue(self, num_1 = 0, num_2 = 0):
+        #return num1, num2
         if num_1 >= num_2:
             return num_1
         else:
             return num_2
-        return 0
+        return -1
 
     def GetTrend(self, timeframe = 'M15'):
         if timeframe == 'M15':
@@ -110,45 +111,62 @@ class PriceAction():
             candle = self.H1_df
         # Tính toán xu hướng
         #trend: 0 => Giảm, 1 => Tăng
-        trend = 0 
         minl,maxl = self.GetKeyLevel(timeframe)
         minl['trend'] = 0
         maxl['trend'] = 1
-        minmaxl = pd.concat([minl,maxl], sort=False).sort_index(ascending = False)
-        #print(minmaxl)
+        minmax_down_loc = pd.concat([minl,maxl], sort=False).sort_index(ascending = True) # min max gộp lại, dùng cho điều kiện key dưới
 
         # Xóa 2 điểm cùng trên or dưới liên tiếp nhau
-        #like_symbol trả về những điểm có cùng trend
-        pos_t = self.GetListHash(minmaxl,2)
-        like_symbol = pos_t[0]['trend'].reset_index(drop=True, inplace=False) - pos_t[1]['trend'].reset_index(drop=True, inplace=False) == 0
-        
+        #like_symbol trả về những điểm có cùng trend trên pos_t[0]
+        pos_t = self.GetListHash(minmax_down_loc, 2)
+        like_symbol = pos_t[0]['trend'].reset_index(drop=True) - pos_t[1]['trend'].reset_index(drop=True) == 0 # default inplace=False
         like_symbol.index = pos_t[0].index
-        print(like_symbol)
-        
-        for i in range(0, len(like_symbol)):
-            pos_1 = like_symbol.iloc([i])
-            pos_2 = like_symbol.iloc([i+1])
 
+        condfx_general = (like_symbol == True)
+        condfx_class_min =(pos_t[0]['trend'] == 0)
+        condfx_class_max =(pos_t[0]['trend'] == 1)
+        #Điều kiện xóa cực tiểu
+        condfx_min_1 = pos_t[0]['close'].reset_index(drop=True).sub(pos_t[1]['close'].reset_index(drop=True), axis=0) >=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) >= 0
+        condfx_min_2 = pos_t[1]['close'].reset_index(drop=True).sub(pos_t[0]['close'].reset_index(drop=True), axis=0) >=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) < 0
+        condfx_min_1.index = pos_t[0].index
+        condfx_min_2.index = pos_t[1].index
+        condfx_min_del = (condfx_min_1 | condfx_min_2) & condfx_class_min
 
+        #Điều kiện xóa cực đại
+        condfx_max_1 = pos_t[1]['close'].reset_index(drop=True).sub(pos_t[0]['close'].reset_index(drop=True), axis=0) <=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) <= 0
+        condfx_max_2 = pos_t[0]['close'].reset_index(drop=True).sub(pos_t[1]['close'].reset_index(drop=True), axis=0) <=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) > 0
+        condfx_max_1.index = pos_t[1].index
+        condfx_max_2.index = pos_t[0].index
+        condfx_max_del = (condfx_max_1 | condfx_max_2) & condfx_class_max
+        # Điều kiện tổng hợp xóa cực tiểu cực đại
+        condfx_12 = (condfx_general & condfx_min_del)
+        condfx_13 = (condfx_general & condfx_max_del)
+        condfx_14 = condfx_12 | condfx_13
+        print(condfx_14)
+        drop_all = minmax_down_loc.drop(condfx_14.loc[condfx_14==True].index)
+        #xóa các điểm cực tiểu ở vị trí có 2 cực tiểu liên tiếp
+        drop_min = minmax_down_loc.drop(condfx_12.loc[condfx_12 == True].index)
+        drop_max = minmax_down_loc.drop(condfx_13.loc[condfx_13 == True].index)
+        # Đang lỗi drop không đúng khi có 3 min gần nhau
 
-        for idx, data in pos_t[0].iterrows():
-            pass
+        up, down = self.EngulfingPattern_Analystic()
+        plt.figure(1)
+        plt.plot(minmax_down_loc['close'],'r.', label='min')
+        plt.plot(up['close'],'g.', label='up')
+        plt.plot(down['close'],'g.', label='down')
+        plt.plot(candle['close'], label='close')
+        # plt.figure(2)
+        # plt.plot(drop_min['close'],'r.', label='min')
+        # plt.plot(candle['close'], label='close')
+        plt.figure(2)
+        plt.plot(drop_all['close'],'r.', label='max')
+        plt.plot(up['close'],'g.', label='up')
+        plt.plot(down['close'],'g.', label='down')
+        plt.plot(candle['close'], label='close')
+    
+        plt.show()
 
-        pos_drop = minmaxl.where()
-        print(pos_drop)
-        for i in len(minmaxl):
-            pos_1 = minmaxl.iloc([i])
-            pos_2 = minmaxl.iloc([i+1])
-            if pos_1['trend'] == pos_2['trend']: # 2 trường đều cùng key 
-                if self.IsCandleUpper(pos_1):
-                        print(self.EqualRetValue(pos_1['close'], pos_2['close']))
-        print(pos_1)
-        print(pos_2)
-        # for i in range(0,4):
-        #     if minmaxl.iloc([cd[0]])['trend'] == minmaxl.iloc([cd[0]+1])['trend']:
-        #         pos_0 = minmaxl.iloc([cd[0]+1])['trend']
-
-        return trend
+        return 
     def CalMoney():
         # Tính toán số tiền 1.117-1.118 : 10pip
 
@@ -156,6 +174,29 @@ class PriceAction():
     def Fibonanci():
         # Tính toán Fibonacci
         return
+    # Pattern
+    def EngulfingPattern_Analystic(self, timeframe = 'M15'):
+        if timeframe == 'M15':
+            candle = self.M15_df
+        if timeframe == 'M5':
+            candle = self.M5_df
+        if timeframe == 'H1':
+            candle = self.H1_df
+        # Tính toán xu hướng
+        tab_1 = candle.drop(candle.index[-1]).reset_index(drop=True)
+        tab_2 = candle.drop(candle.index[0]).reset_index(drop=True)
+
+        cond_1 = (tab_1["open"] > tab_1["close"]) & (tab_2["open"] < tab_2["close"]) & (
+            (tab_1["close"] > tab_2["open"]) & (tab_1["open"] < tab_2["close"]))
+        cond_2 = (tab_1["open"] <= tab_1["close"]) & (tab_2["open"] >= tab_2["close"]) & (
+            (tab_1["close"] < tab_2["open"]) & (tab_1["open"] > tab_2["close"]))
+
+        upper_patt = candle.where(cond_1)
+        lower_patt = candle.where(cond_2)
+
+        return upper_patt, lower_patt
+
+
 
 if __name__ == "__main__":
 
