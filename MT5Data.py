@@ -17,7 +17,7 @@ class MT5Data():
     def Shutdown():
         mt5.shutdown()
         return
-    def GetCandleRealTime(NumOfCandle=1000, currencies='GBPUSD', timeframe=mt5.TIMEFRAME_M15, savepath=''):
+    def GetCandleRealTime(NumOfCandle=500, currencies='GBPUSD', timeframe=mt5.TIMEFRAME_M15, savepath=''):
         # Nến cuối cùng sẽ lấy giá trị đóng cửa cho dù chưa hết thời gian
         if not mt5.initialize():
             print("initialize MT5 failed")

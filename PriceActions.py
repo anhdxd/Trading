@@ -20,7 +20,7 @@ class PriceAction():
         self.pathcf = 'RealTimeData\config.ini' 
         self.M15_df = self.GetCandle('M15',500)
         #self.M5_df = self.GetCandle('M5',500)
-        #self.H1_df = self.GetCandle('H1',500)
+        self.H1_df = self.GetCandle('H1',5000)
 
     def GetCandle(self, timeframe = 'M15', numofcandle = 1000):
         # Lấy dữ liệu M15 Candle
@@ -36,7 +36,8 @@ class PriceAction():
 
         config.read(self.pathcf)
         pathcsv = config['PATHFILE'][timeframe]
-        old_time = datetime.fromtimestamp(float(config['TIMESTAMP'][timeframe]), tz=pytz.utc)
+        old_time = datetime.fromtimestamp(float(config['TIMESTAMP'][timeframe]),tz=pytz.utc)
+
         if timeframe == "M5":
             mt5_time = datetime.now(pytz.utc) + timedelta(hours=2) - timedelta(minutes=5)
             time_get = mt5.TIMEFRAME_M5
@@ -44,23 +45,26 @@ class PriceAction():
             mt5_time = datetime.now(pytz.utc) + timedelta(hours=2) - timedelta(minutes=15)
             time_get = mt5.TIMEFRAME_M15
         if timeframe == "H1":
-            mt5_time = datetime.now(pytz.utc) + timedelta(hours=2) - timedelta(minutes=60)
+            mt5_time = datetime.now(pytz.utc) + timedelta(hours=2) - timedelta(hours=1)
             time_get = mt5.TIMEFRAME_H1
 
+        print("time new:" + str(mt5_time))
+        print("time old:" + str(old_time))
         if mt5_time >= old_time:
             candle = m5d.GetCandleRealTime(NumOfCandle=numofcandle, savepath=pathcsv, timeframe=time_get)
             with open(self.pathcf, 'w') as configfile:
-                config['TIMESTAMP'][timeframe] = mt5_time.timestamp().__str__()
+                time_write = datetime.now(pytz.utc) + timedelta(hours=2)
+                config['TIMESTAMP'][timeframe] = time_write.timestamp().__str__()
                 config.write(configfile)
         else:
             candle = pd.read_csv(pathcsv)
 
         return candle
 
-    def GetKeyLevel(self, timeframe = 'M15'):
+    def GetKeyLevel(self, timeframe = 'M15', CandleBetween = 10):
         # Tìm các mốc giá quan trọng
         # Get Key level
-        numoftrend = 10
+        numoftrend = CandleBetween
         if timeframe == 'M5':
             candle = self.M5_df
             minloc = candle.iloc[argrelextrema(candle["close"].values, np.less_equal, order=numoftrend)[0]]
@@ -115,53 +119,57 @@ class PriceAction():
         minl['trend'] = 0
         maxl['trend'] = 1
         minmax_down_loc = pd.concat([minl,maxl], sort=False).sort_index(ascending = True) # min max gộp lại, dùng cho điều kiện key dưới
-
+        #print(minmax_down_loc)
         # Xóa 2 điểm cùng trên or dưới liên tiếp nhau
         #like_symbol trả về những điểm có cùng trend trên pos_t[0]
         pos_t = self.GetListHash(minmax_down_loc, 2)
-        like_symbol = pos_t[0]['trend'].reset_index(drop=True) - pos_t[1]['trend'].reset_index(drop=True) == 0 # default inplace=False
-        like_symbol.index = pos_t[0].index
+        like_symbol_1 = pos_t[0]['trend'].reset_index(drop=True) - pos_t[1]['trend'].reset_index(drop=True) == 0 # default inplace=False
+        like_symbol_2 = (pos_t[1]['trend'].reset_index(drop=True) - pos_t[0]['trend'].reset_index(drop=True) == 0)
+        like_symbol_1.index = pos_t[0].index
+        like_symbol_2.index = pos_t[1].index 
 
+        like_symbol = like_symbol_1 | like_symbol_2
+        #Điều kiện chọn điểm cực tiểu hoặc cực đại, 2 điểm liên tiếp
         condfx_general = (like_symbol == True)
         condfx_class_min =(pos_t[0]['trend'] == 0)
-        condfx_class_max =(pos_t[0]['trend'] == 1)
+        condfx_class_max =(pos_t[0]['trend'] == 1) 
+
         #Điều kiện xóa cực tiểu
-        condfx_min_1 = pos_t[0]['close'].reset_index(drop=True).sub(pos_t[1]['close'].reset_index(drop=True), axis=0) >=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) >= 0
-        condfx_min_2 = pos_t[1]['close'].reset_index(drop=True).sub(pos_t[0]['close'].reset_index(drop=True), axis=0) >=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) < 0
+        condfx_min_1 = pos_t[0]['close'].reset_index(drop=True).sub(pos_t[1]['close'].reset_index(drop=True), axis=0) >=0 
+        condfx_min_2 = pos_t[1]['close'].reset_index(drop=True).sub(pos_t[0]['close'].reset_index(drop=True), axis=0) >=0 
         condfx_min_1.index = pos_t[0].index
         condfx_min_2.index = pos_t[1].index
-        condfx_min_del = (condfx_min_1 | condfx_min_2) & condfx_class_min
+        print(pos_t[1])
+        print(condfx_class_min)
+        print(condfx_general)
+        print(condfx_min_1)
+        print(condfx_min_2)
+        condfx_min_del = ((condfx_min_1 | condfx_min_2) & condfx_class_min) & condfx_general
 
         #Điều kiện xóa cực đại
-        condfx_max_1 = pos_t[1]['close'].reset_index(drop=True).sub(pos_t[0]['close'].reset_index(drop=True), axis=0) <=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) <= 0
-        condfx_max_2 = pos_t[0]['close'].reset_index(drop=True).sub(pos_t[1]['close'].reset_index(drop=True), axis=0) <=0 #(pos_t[0]['close'].iloc[0:-1] - pos_t[1]['close'].iloc[0:-1]) > 0
+        condfx_max_1 = pos_t[1]['close'].reset_index(drop=True).sub(pos_t[0]['close'].reset_index(drop=True), axis=0) <=0
+        condfx_max_2 = pos_t[0]['close'].reset_index(drop=True).sub(pos_t[1]['close'].reset_index(drop=True), axis=0) <=0
         condfx_max_1.index = pos_t[1].index
         condfx_max_2.index = pos_t[0].index
-        condfx_max_del = (condfx_max_1 | condfx_max_2) & condfx_class_max
+        condfx_max_del = ((condfx_max_1 | condfx_max_2) & condfx_class_max) & condfx_general
+
         # Điều kiện tổng hợp xóa cực tiểu cực đại
         condfx_12 = (condfx_general & condfx_min_del)
         condfx_13 = (condfx_general & condfx_max_del)
-        condfx_14 = condfx_12 | condfx_13
-        print(condfx_14)
-        drop_all = minmax_down_loc.drop(condfx_14.loc[condfx_14==True].index)
-        #xóa các điểm cực tiểu ở vị trí có 2 cực tiểu liên tiếp
-        drop_min = minmax_down_loc.drop(condfx_12.loc[condfx_12 == True].index)
-        drop_max = minmax_down_loc.drop(condfx_13.loc[condfx_13 == True].index)
-        # Đang lỗi drop không đúng khi có 3 min gần nhau
+        condfx_all_del = condfx_min_del | condfx_max_del
 
-        up, down = self.EngulfingPattern_Analystic()
+        # Lấy cị trí cực tiểu cực đại
+        drop_all = minmax_down_loc.drop(condfx_all_del.loc[condfx_all_del==True].index)
+
+        # Print đồ thị
         plt.figure(1)
         plt.plot(minmax_down_loc['close'],'r.', label='min')
-        plt.plot(up['close'],'g.', label='up')
-        plt.plot(down['close'],'g.', label='down')
         plt.plot(candle['close'], label='close')
         # plt.figure(2)
         # plt.plot(drop_min['close'],'r.', label='min')
         # plt.plot(candle['close'], label='close')
         plt.figure(2)
         plt.plot(drop_all['close'],'r.', label='max')
-        plt.plot(up['close'],'g.', label='up')
-        plt.plot(down['close'],'g.', label='down')
         plt.plot(candle['close'], label='close')
     
         plt.show()
@@ -202,7 +210,7 @@ if __name__ == "__main__":
 
     folderpath = os.path.dirname(__file__) + "\data_csv_mt5"
     pri = PriceAction()
-    pri.GetTrend()
+    pri.GetTrend('H1')
     minl,maxl = pri.GetKeyLevel()
     minl_2,maxl_2 = pri.GetKeyLevel('H1')
     plt.figure(1)
