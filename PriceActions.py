@@ -10,6 +10,7 @@ from MT5Data import MT5Data as m5d
 import MetaTrader5 as mt5
 import threading
 from Utils import CUtils as uts
+from time import sleep
 # PriceAction Class
 # *******************************************************************************************************
 
@@ -19,7 +20,7 @@ class PriceAction():
         self.H1_df = pd.DataFrame()
         self.M5_df = pd.DataFrame()
         self.pathcf = 'RealTimeData\config.ini' 
-        self.M15_df = self.GetCandle('M15', 500)
+        #self.M15_df = self.GetCandle('M15', 500)
         #self.M5_df = self.GetCandle('M5',500)
         #self.H1_df = self.GetCandle('H1', 100)
 
@@ -200,14 +201,9 @@ class PriceAction():
         return
 
     # Indicator
-    def RSI(self, periods = 14, ema = True, timeframe = 'M15'):
-        if timeframe == 'M15':
-            df = self.M15_df.copy()
-        if timeframe == 'M5':
-            df = self.M5_df.copy()
-        if timeframe == 'H1':
-            df = self.H1_df.copy()
+    def RSI(self, periods = 14, ema = True, timeframe = 'M5', df_data = pd.DataFrame()):
 
+        df = df_data.copy()
         close_delta = df['close'].diff()
         # Make two series: one for lower closes and one for higher closes
         up = close_delta.clip(lower=0)
@@ -229,7 +225,7 @@ class PriceAction():
 
     #Trading11.
     
-    def Trading(self, trend = 'SW', timeframe = 'M15'):
+    def Trading(self, trend = 'SW', timeframe = 'M5'):
         #Cách 1:
         # RSI >= 55, 1 mô hình đảo chiều trên con sóng hồi (timeframe nhỏ hơn), fibo 0.5-0.618
         # Sizewave: RSI >=65, gần đỉnh gần nhất trước đó, 1 mô hình đảo chiều 
@@ -238,64 +234,75 @@ class PriceAction():
         # Tới keylevel tự đặt lệnh ở cả 2 chiều, tỷ lệ 1:2 hoặc 1:3 khi có mô hình đảo chiều
         # Cách 3:v
         #Tới 0.5-0.618 và 1 mô hình nến đảo chiều => buy/sell theo xu hướng
+        
         if timeframe == 'M15':
-            candle = self.M15_df
-        if timeframe == 'M5':
-            candle = self.M5_df
-        if timeframe == 'H1':
-            candle = self.H1_df
+            candle = self.GetCandle('M15',50)
+        elif timeframe == 'M5':
+            candle = m5d.GetCandleRealTime(NumOfCandle=50, timeframe=mt5.TIMEFRAME_M5)
+        elif timeframe == 'H1':
+            candle = self.GetCandle('H1',50)
 
-        minl,maxl = self.GetKeyLevel(timeframe, CandleBetween = 5)
+        self.M5_df = candle
+        minl,maxl = self.GetKeyLevel(timeframe = timeframe, CandleBetween = 5)
         
-        minl['trend'] = 0
-        maxl['trend'] = 1
-        minmax_down_loc = pd.concat([minl,maxl], sort=False).sort_index(ascending = True)
-
+        # minl['trend'] = 0
+        # maxl['trend'] = 1
+        # minmax_down_loc = pd.concat([minl,maxl], sort=False).sort_index(ascending = True)
+        minl.sort_index(ascending = True, inplace = True)
         #test order
-        m5d.LongPosition()
-        # sideway
-        if trend == 'SW':
-            short_entry, long_entry = self.GetKeyLevel(timeframe, CandleBetween = 10)
+        # sideway up
+        # if trend == 'SW':
+        #     short_entry, long_entry = self.GetKeyLevel(timeframe, CandleBetween = 10)
         
-        df_rt = m5d.GetCandleRealTime(50).sort_index(ascending = True)
-        if abs(df_rt['close'].iloc[-1] - minmax_down_loc['close'].iloc[-1]) <= 0.0015:
-            # setup lệnh
-            pass
+        df_rt = m5d.GetCandleRealTime(NumOfCandle=50, timeframe=mt5.TIMEFRAME_M5).sort_index(ascending = True) # dataframe realtime
+        delta_space = abs(df_rt['close'].iloc[-1] - minl['close'].iloc[-1])
+        if  delta_space <= 0.0005:
+            # setup lệnh khoang 15pip
+            #sl_pip = (df_rt['close'].iloc[-1] - minmax_down_loc['low'].iloc[-1] + 0.0003) * 10000
+            rsi = self.RSI(df_data=df_rt)
+            print(rsi)
+            if(rsi.iloc[-1] <=50):
+                m5d.LongPosition(sl_pip=150, tp_pip=300)
+            
 
-        plt.figure(1)
-        plt.plot(minl['close'],'g.', label='min')
-        plt.plot(maxl['close'],'r.', label='max')
-        plt.plot(candle['close'], label='close')
-        plt.figure(2)
-        plt.plot(short_entry['close'],'g.', label='min')
-        plt.plot(long_entry['close'],'r.', label='max')
-        plt.plot(candle['close'], label='close')
-        plt.show()
-        EngulfingPattern = self.EngulfingPattern()
-        rsi = self.RSI()
-        print(rsi.iloc[-1])
+
+        # plt.figure(1)
+        # plt.plot(minl['close'],'g.', label='min')
+        # plt.plot(maxl['close'],'r.', label='max')
+        # plt.plot(candle['close'], label='close')
+        # plt.figure(2)
+        # plt.plot(short_entry['close'],'g.', label='min')
+        # plt.plot(long_entry['close'],'r.', label='max')
+        # plt.plot(candle['close'], label='close')
+        # plt.show()
+        # EngulfingPattern = self.EngulfingPattern()
+        # rsi = self.RSI()
+        # print(rsi.iloc[-1])
         return
 
 if __name__ == "__main__":
     folderpath = os.path.dirname(__file__) + "\data_csv_mt5"
     pri = PriceAction()
-    pri.Trading()
-    #Trend Section
-    pri.GetTrend('M15')
-    minl,maxl = pri.GetKeyLevel()
-    minl_2,maxl_2 = pri.GetKeyLevel('H1')
-    plt.figure(1)
-    plt.title('M15')
-    plt.plot(pri.M15_df["close"])
-    plt.plot(minl["close"], 'r.', label='min')
-    plt.plot(maxl["close"], 'g.', label='max')
-    
-    plt.figure(2)
-    plt.title('H1')
-    plt.plot(pri.H1_df["close"])
-    plt.plot(minl_2["close"], 'r.', label='min')
-    plt.plot(maxl_2["close"], 'g.', label='max')
 
-    plt.show()
+    while True:
+        pri.Trading(timeframe='M5')
+        sleep(60)
+    #Trend Section
+    # pri.GetTrend('M15')
+    # minl,maxl = pri.GetKeyLevel()
+    # minl_2,maxl_2 = pri.GetKeyLevel('H1')
+    # plt.figure(1)
+    # plt.title('M15')
+    # plt.plot(pri.M15_df["close"])
+    # plt.plot(minl["close"], 'r.', label='min')
+    # plt.plot(maxl["close"], 'g.', label='max')
+    
+    # plt.figure(2)
+    # plt.title('H1')
+    # plt.plot(pri.H1_df["close"])
+    # plt.plot(minl_2["close"], 'r.', label='min')
+    # plt.plot(maxl_2["close"], 'g.', label='max')
+
+    # plt.show()
 
     

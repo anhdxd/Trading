@@ -9,8 +9,7 @@ import pytz
 class MT5Data():
     symbol_default = "GBPUSD"
     lot_default = 0.01
-    entry_buy_default = mt5.symbol_info_tick(symbol_default).ask
-    point_default = mt5.symbol_info(symbol_default).point
+
     def __init__(self):
         pass
     def Initialize():
@@ -41,13 +40,13 @@ class MT5Data():
             rates_frame.to_csv(savepath, index=False)
         #return DataFrame
         return rates_frame
-    def LongPosition(entry = entry_buy_default, stop_loss = entry_buy_default - 100 * point_default, TakeProfit = entry_buy_default + 200 * point_default):
+    def LongPosition(entry = 0, sl_pip = 100, tp_pip = 200):
         if not mt5.initialize():
             print("initialize() failed, error code =",mt5.last_error())
             quit()
 
         # prepare the buy request structure
-        symbol = symbol_default
+        symbol = MT5Data.symbol_default
         symbol_info = mt5.symbol_info(symbol)
         if symbol_info is None:
             print(symbol, "not found, can not call order_check()")
@@ -64,16 +63,18 @@ class MT5Data():
 
         lot = 0.01
         point = mt5.symbol_info(symbol).point
-        price = mt5.symbol_info_tick(symbol).bid
+        price = mt5.symbol_info_tick(symbol).ask
+        sl = price - sl_pip * point
+        tp = price + tp_pip * point
         deviation = 20
         request = {
             "action": mt5.TRADE_ACTION_DEAL,
             "symbol": symbol,
             "volume": lot,
-            "type": mt5.ORDER_TYPE_SELL,
+            "type": mt5.ORDER_TYPE_BUY,
             "price": price,
-            "sl": price + 200 * point,
-            "tp": price - 400 * point,
+            "sl": sl,
+            "tp": tp,
             "deviation": deviation,
             "magic": 234000,
             "comment": "python script open",
