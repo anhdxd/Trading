@@ -255,13 +255,19 @@ class PriceAction():
         #     short_entry, long_entry = self.GetKeyLevel(timeframe, CandleBetween = 10)
         
         df_rt = m5d.GetCandleRealTime(NumOfCandle=50, timeframe=mt5.TIMEFRAME_M5).sort_index(ascending = True) # dataframe realtime
+        
         delta_space = abs(df_rt['close'].iloc[-1] - minl['close'].iloc[-1])
+        if(delta_space <= 0.0001):
+            delta_space = abs(df_rt['close'].iloc[-1] - minl['close'].iloc[-2])
+            
+
+        print(f'DELTA SPACE:{delta_space}')
         if  delta_space <= 0.0005:
             # setup lệnh khoang 15pip
             #sl_pip = (df_rt['close'].iloc[-1] - minmax_down_loc['low'].iloc[-1] + 0.0003) * 10000
             rsi = self.RSI(df_data=df_rt)
-            print(rsi)
-            if(rsi.iloc[-1] <=50):
+            #print(rsi)
+            if(rsi.iloc[-1] <=45):
                 m5d.LongPosition(sl_pip=150, tp_pip=300)
             
 
@@ -286,7 +292,7 @@ if __name__ == "__main__":
 
     while True:
         pri.Trading(timeframe='M5')
-        sleep(60)
+        sleep(30)
     #Trend Section
     # pri.GetTrend('M15')
     # minl,maxl = pri.GetKeyLevel()
