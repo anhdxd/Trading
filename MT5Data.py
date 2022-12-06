@@ -16,16 +16,13 @@ class MT5Data():
         if not mt5.initialize():
             print("initialize() failed")
             mt5.shutdown()
+        print(f'MT5 Version:{mt5.version()}')
         return
     def Shutdown():
         mt5.shutdown()
         return
     def GetCandleRealTime(NumOfCandle=500, currencies='GBPUSD', timeframe=mt5.TIMEFRAME_M15, savepath=''):
         # Nến cuối cùng sẽ lấy giá trị đóng cửa cho dù chưa hết thời gian
-        if not mt5.initialize():
-            print("initialize MT5 failed")
-            mt5.shutdown()
-        print(f'MT5 Version:{mt5.version()}')
         mt5_time = datetime.now(pytz.utc) + timedelta(hours=2)# Time MT5
         cur_rates = mt5.copy_rates_from(currencies, timeframe, mt5_time, NumOfCandle)#Get 1000 candle từ time now trở về
         if cur_rates is None:
